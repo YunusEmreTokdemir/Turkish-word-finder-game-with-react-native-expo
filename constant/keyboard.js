@@ -15,13 +15,13 @@ const Keyboard = ({ onKeyPress }) => (
       ))}
     </View>
     <View style={styles.row}>
-      {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ'].map((key) => (
+      {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ş', 'İ', 'Â'].map((key) => (
         <Key key={key} keyVal={key} onPress={onKeyPress} />
       ))}
     </View>
     <View style={styles.row}>
       <Key key="Backspace" keyVal="⌫" onPress={onKeyPress} />
-      {['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ç'].map((key) => (
+      {['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ö', 'Ç'].map((key) => (
         <Key key={key} keyVal={key} onPress={onKeyPress} />
       ))}
       <Key key="Enter" keyVal="✓" onPress={onKeyPress} />

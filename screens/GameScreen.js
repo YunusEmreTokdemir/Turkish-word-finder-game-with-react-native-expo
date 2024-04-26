@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openDatabase } from 'expo-sqlite';
 
 import Keyboard from '../constant/keyboard';
-import kelimelistesi from '../src/wordle_kelime_listesi.json';
+
+const db = openDatabase('wordle.db');
 
 const GameScreen = () => {
   const navigation = useNavigation();
@@ -18,22 +20,63 @@ const GameScreen = () => {
   const [letterStatuses, setLetterStatuses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('grey')));
 
   useEffect(() => {
-    const yeniKelime = rastgeleKelimeSec(letterCount);
-    setCorrectWord(yeniKelime.toUpperCase());
-    setGuesses(Array(6).fill('').map(() => Array(letterCount).fill('')));
-    setLetterStatuses(Array(6).fill('').map(() => Array(letterCount).fill('grey')));
-    setCurrentRow(0);
-    setCurrentColumn(0);
+    initializeDatabase().then(() => {
+      rastgeleKelimeSec(letterCount);
+    });
   }, [letterCount]);
 
-  const rastgeleKelimeSec = (harfSayisi) => {
-    const kelimeler = kelimelistesi[`${harfSayisi}_harfli`];
-    const rastgeleIndex = Math.floor(Math.random() * kelimeler.length);
-    console.log(kelimeler[rastgeleIndex]);
-    return kelimeler[rastgeleIndex];
+  const initializeDatabase = async () => {
+    return new Promise((resolve, reject) => {
+      db.transaction(tx => {
+        tx.executeSql(
+          'create table if not exists words (id integer primary key not null, length integer, word text);',
+          [],
+          () => {
+            tx.executeSql('select count(id) as cnt from words;', [], (_, { rows }) => {
+              if (rows._array[0].cnt === 0) {
+                // Veritabanı boşsa, verileri aktar
+                console.log('Database is empty, inserting data...');
+                Object.keys(kelimelistesi).forEach(key => {
+                  const length = parseInt(key.split('_')[0]);
+                  kelimelistesi[key].forEach(word => {
+                    tx.executeSql('insert into words (length, word) values (?, ?);', [length, word]);
+                  });
+                });
+              } else {
+                console.log('Database already initialized.');
+              }
+              resolve();
+            });
+          },
+          (_, error) => {
+            console.log('Error initializing database: ' + error.message);
+            reject();
+          }
+        );
+      });
+    });
   };
 
-  // Harf tuşlarına basıldığında çalışacak fonksiyon
+  const rastgeleKelimeSec = (harfSayisi) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        'select word from words where length = ? order by random() limit 1;',
+        [harfSayisi],
+        (_, { rows }) => {
+          if (rows.length > 0) {
+            setCorrectWord(rows._array[0].word.toUpperCase());
+            setGuesses(Array(6).fill('').map(() => Array(harfSayisi).fill('')));
+            setLetterStatuses(Array(6).fill('').map(() => Array(harfSayisi).fill('grey')));
+            setCurrentRow(0);
+            setCurrentColumn(0);
+            console.log( rows._array[0].word.toUpperCase());
+          }
+        },
+        (_, error) => console.error('Failed to fetch word from database:', error)
+      );
+    });
+  };
+
   const onKeyPress = (key) => {
     if (key === '✓') {
       if (currentColumn === letterCount) {
@@ -56,44 +99,40 @@ const GameScreen = () => {
     }
   };
 
-  // Kullanıcının tahminini kontrol etme
-  // Kullanıcının tahminini kontrol etme ve oyunu sonlandırma
-const checkGuess = () => {
-  const userGuess = guesses[currentRow].join('').toUpperCase();
-  if (kelimelistesi[`${letterCount}_harfli`].map(kelime => kelime.toUpperCase()).includes(userGuess)) {
-    checkLetters(userGuess);
-    if (userGuess === correctWord) {
-      // Doğru kelimeyi tahmin etti, oyunu sonlandır ve tebrikler mesajı göster
-      Alert.alert("Tebrikler", `Doğru kelimeyi buldunuz: ${correctWord}`, [
-        { text: "Yeniden Oyna", onPress: () => restartGame() }
-      ]);
-    } else if (currentRow < 5) {
-      setCurrentRow(currentRow + 1);
-      setCurrentColumn(0);
-    } else {
-      // Maksimum tahmin sayısına ulaşıldı, oyunu sonlandır
-      Alert.alert("Oyun Bitti", `Doğru kelime: ${correctWord}`, [
-        { text: "Yeniden Oyna", onPress: () => restartGame() }
-      ]);
-    }
-  } else {
-    Alert.alert('Hata', 'Kelime havuzunda bu kelime yok!');
-  }
-};
+  const checkGuess = () => {
+    const userGuess = guesses[currentRow].join('').toUpperCase();
+    db.transaction(tx => {
+      tx.executeSql(
+        'select * from words where length = ? and word = ?;',
+        [letterCount, userGuess],
+        (_, { rows }) => {
+          if (rows.length > 0) {
+            checkLetters(userGuess);
+            if (userGuess === correctWord) {
+              Alert.alert("Tebrikler", `Doğru kelimeyi buldunuz: ${correctWord}`, [
+                { text: "Yeniden Oyna", onPress: () => restartGame() }
+              ]);
+            } else if (currentRow < 5) {
+              setCurrentRow(currentRow + 1);
+              setCurrentColumn(0);
+            } else {
+              Alert.alert("Oyun Bitti", `Doğru kelime: ${correctWord}`, [
+                { text: "Yeniden Oyna", onPress: () => restartGame() }
+              ]);
+            }
+          } else {
+            Alert.alert('Hata', 'Kelime havuzunda bu kelime yok!');
+          }
+        },
+        (_, error) => console.error('Failed to check guess:', error)
+      );
+    });
+  };
 
-// Oyunu yeniden başlat
-const restartGame = () => {
-  // Yeni harf sayısına göre doğru kelimeyi seç
-  const yeniKelime = rastgeleKelimeSec(letterCount);
-  setCorrectWord(yeniKelime.toUpperCase());
-  setGuesses(Array(6).fill('').map(() => Array(letterCount).fill('')));
-  setLetterStatuses(Array(6).fill('').map(() => Array(letterCount).fill('grey')));
-  setCurrentRow(0);
-  setCurrentColumn(0);
-};
+  const restartGame = () => {
+    rastgeleKelimeSec(letterCount);
+  };
 
-
-  // Harflerin yerini kontrol etme ve renklendirme
   const checkLetters = (userGuess) => {
     let statusArray = Array(letterCount).fill('grey');
     let tempCorrectWord = correctWord.split('');
@@ -142,26 +181,21 @@ const restartGame = () => {
     </View>
   );
 
-  
-
-  // Kullanıcı arayüzü ve stil tanımlamaları burada yer alacak
-
   return (
     <SafeAreaView style={styles.safeArea}>
-  <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
-    <Ionicons name="home" size={24} color="black" />
-  </TouchableOpacity>
-  <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('SettingScreen')}>
-    <Ionicons name="settings-outline" size={24} color="black" />
-  </TouchableOpacity>
-  <View style={styles.grid}>
-    {guesses.map((guess, index) => (
-      <GuessRow key={index} guess={guess} rowIndex={index} />
-    ))}
-  </View>
-  <Keyboard onKeyPress={onKeyPress} />
-</SafeAreaView>
-
+      <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
+        <Ionicons name="home" size={24} color="black" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('SettingScreen')}>
+        <Ionicons name="settings-outline" size={24} color="black" />
+      </TouchableOpacity>
+      <View style={styles.grid}>
+        {guesses.map((guess, index) => (
+          <GuessRow key={index} guess={guess} rowIndex={index} />
+        ))}
+      </View>
+      <Keyboard onKeyPress={onKeyPress} />
+    </SafeAreaView>
   );
 };
 
@@ -176,11 +210,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   homeButton: {
     position: 'absolute',
@@ -215,6 +244,5 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
 });
-
 
 export default GameScreen;
