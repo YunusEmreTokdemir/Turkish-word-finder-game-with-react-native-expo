@@ -1,31 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Vibration } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDatabase } from 'expo-sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import Keyboard from '../constant/keyboard';
 
 const db = openDatabase('wordle.db');
 
-const GameScreen = () => {
+const DailyGameScreen = () => {
   const navigation = useNavigation();
-  const route = useRoute();
-  const letterCount = route.params?.letterCount || 5;
+  const letterCount = 5;
   const [guesses, setGuesses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('')));
   const [currentRow, setCurrentRow] = useState(0);
   const [currentColumn, setCurrentColumn] = useState(0);
   const [correctWord, setCorrectWord] = useState('');
   const [letterStatuses, setLetterStatuses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('grey')));
-  const [kazandiniz, setKazandiniz] = useState(false);
+  const [isDailyMode, setIsDailyMode] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [showWinningMessage, setShowWinningMessage] = useState(false);
 
   useEffect(() => {
     initializeDatabase().then(() => {
-      rastgeleKelimeSec(letterCount);
+      if (isDailyMode) {
+        enableDailyMode();
+      }
     });
-  }, [letterCount]);
+  }, []);
 
   const initializeDatabase = async () => {
     return new Promise((resolve, reject) => {
@@ -33,23 +35,7 @@ const GameScreen = () => {
         tx.executeSql(
           'create table if not exists words (id integer primary key not null, length integer, word text);',
           [],
-          () => {
-            tx.executeSql('select count(id) as cnt from words;', [], (_, { rows }) => {
-              if (rows._array[0].cnt === 0) {
-                console.log('Database is empty, inserting data...');
-                // Kelimeleri ekleyin
-                Object.keys(kelimelistesi).forEach(key => {
-                  const length = parseInt(key.split('_')[0]);
-                  kelimelistesi[key].forEach(word => {
-                    tx.executeSql('insert into words (length, word) values (?, ?);', [length, word]);
-                  });
-                });
-              } else {
-                console.log('Database already initialized.');
-              }
-              resolve();
-            });
-          },
+          () => resolve(),
           (_, error) => {
             console.log('Error initializing database: ' + error.message);
             reject();
@@ -59,47 +45,81 @@ const GameScreen = () => {
     });
   };
 
-  const rastgeleKelimeSec = (harfSayisi) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'select word from words where length = ? order by random() limit 1;',
-        [harfSayisi],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            const word = rows._array[0].word.toUpperCase();
-            setCorrectWord(word);
-            setGuesses(Array(6).fill('').map(() => Array(harfSayisi).fill('')));
-            setLetterStatuses(Array(6).fill('').map(() => Array(harfSayisi).fill('grey')));
-            setCurrentRow(0);
-            setCurrentColumn(0);
-            console.log(`Seçilen kelime: ${word}`); // Seçilen kelimeyi konsola basın
+  const getOrSetDailyWord = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const savedData = await AsyncStorage.getItem('dailyWord');
+    if (savedData) {
+      const { date, word } = JSON.parse(savedData);
+      if (date === today) {
+        console.log("Günlük Kelime: ", word);
+        return word;
+      }
+    }
+
+    let newWord = '';
+    return new Promise((resolve, reject) => {
+      db.transaction(tx => {
+        tx.executeSql(
+          'select word from words where length = ? order by random() limit 1;',
+          [5],
+          (_, { rows }) => {
+            if (rows.length > 0) {
+              newWord = rows._array[0].word.toUpperCase();
+              console.log("Yeni Günlük Kelime: ", newWord);
+              AsyncStorage.setItem(
+                'dailyWord',
+                JSON.stringify({ date: today, word: newWord })
+              );
+              resolve(newWord);
+            } else {
+              reject('No words available.');
+            }
           }
-        },
-        (_, error) => console.error('Failed to fetch word from database:', error)
-      );
+        );
+      });
     });
   };
 
-  const onKeyPress = (key) => {
-    if (key === '✓') {
-      if (currentColumn === letterCount) {
-        checkGuess();
-      } else {
-        console.log('Henüz tamamlanmadı!');
+  const enableDailyMode = async () => {
+    const dailyWord = await getOrSetDailyWord();
+    const savedData = await AsyncStorage.getItem('dailyGameState');
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (savedData) {
+      try {
+        const { date, guesses, letterStatuses, currentRow, currentColumn, isLocked } = JSON.parse(savedData);
+        if (date === today) {
+          setCorrectWord(dailyWord);
+          setGuesses(guesses ?? Array(6).fill('').map(() => Array(5).fill('')));
+          setLetterStatuses(letterStatuses ?? Array(6).fill('').map(() => Array(5).fill('grey')));
+          setCurrentRow(currentRow ?? 0);
+          setCurrentColumn(currentColumn ?? 0);
+          setIsLocked(isLocked ?? false);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to parse saved data:', error);
       }
-    } else if (key === '⌫') {
-      if (currentColumn > 0) {
-        const newGuesses = [...guesses];
-        newGuesses[currentRow][currentColumn - 1] = '';
-        setGuesses(newGuesses);
-        setCurrentColumn(currentColumn - 1);
-      }
-    } else if (currentColumn < letterCount) {
-      const newGuesses = [...guesses];
-      newGuesses[currentRow][currentColumn] = key;
-      setGuesses(newGuesses);
-      setCurrentColumn(currentColumn + 1);
     }
+
+    const initialGuesses = Array(6).fill('').map(() => Array(5).fill(''));
+    const initialStatuses = Array(6).fill('').map(() => Array(5).fill('grey'));
+
+    setCorrectWord(dailyWord);
+    setGuesses(initialGuesses);
+    setLetterStatuses(initialStatuses);
+    setCurrentRow(0);
+    setCurrentColumn(0);
+    setIsLocked(false);
+
+    await AsyncStorage.setItem('dailyGameState', JSON.stringify({
+      date: today,
+      guesses: initialGuesses,
+      letterStatuses: initialStatuses,
+      currentRow: 0,
+      currentColumn: 0,
+      isLocked: false
+    }));
   };
 
   const checkGuess = () => {
@@ -112,30 +132,27 @@ const GameScreen = () => {
           if (rows.length > 0) {
             checkLetters(userGuess);
             if (userGuess === correctWord) {
-              setKazandiniz(true); // Kazandınız mesajını göster
+              setIsLocked(true);
+              setShowWinningMessage(true);
+              saveGameState(true);
               setTimeout(() => {
-                setKazandiniz(false); // Kazandınız mesajını kapat
-                restartGame(); // Yeni oyunu başlat
-              }, 2000);
+                setShowWinningMessage(false);
+              }, 3000);
             } else if (currentRow < 5) {
               setCurrentRow(currentRow + 1);
               setCurrentColumn(0);
+              saveGameState(false);
             } else {
-              console.log("Oyun Bitti");
-              restartGame();
+              setIsLocked(true);
+              saveGameState(true);
             }
           } else {
-            Vibration.vibrate(500); // 500 milisaniye titreşim
-            console.log('Kelime havuzunda bu kelime yok!');
+            Vibration.vibrate();
           }
         },
         (_, error) => console.error('Failed to check guess:', error)
       );
     });
-  };
-
-  const restartGame = () => {
-    rastgeleKelimeSec(letterCount);
   };
 
   const checkLetters = (userGuess) => {
@@ -160,6 +177,43 @@ const GameScreen = () => {
       statuses[currentRow] = statusArray;
       return [...statuses];
     });
+  };
+
+  const onKeyPress = (key) => {
+    if (isLocked) {
+      return;
+    }
+
+    if (key === '✓') {
+      if (currentColumn === letterCount) {
+        checkGuess();
+      } else {
+        Alert.alert('Uyarı', 'Henüz tamamlanmadı!');
+      }
+    } else if (key === '⌫') {
+      if (currentColumn > 0) {
+        const newGuesses = [...guesses];
+        newGuesses[currentRow][currentColumn - 1] = '';
+        setGuesses(newGuesses);
+        setCurrentColumn(currentColumn - 1);
+      }
+    } else if (currentColumn < letterCount) {
+      const newGuesses = [...guesses];
+      newGuesses[currentRow][currentColumn] = key;
+      setGuesses(newGuesses);
+      setCurrentColumn(currentColumn + 1);
+    }
+  };
+
+  const saveGameState = async (isLocked) => {
+    await AsyncStorage.setItem('dailyGameState', JSON.stringify({
+      date: new Date().toISOString().slice(0, 10),
+      guesses,
+      letterStatuses,
+      currentRow: isLocked ? currentRow : currentRow + 1,
+      currentColumn: 0,
+      isLocked
+    }));
   };
 
   const GuessRow = ({ guess, rowIndex }) => (
@@ -191,17 +245,14 @@ const GameScreen = () => {
       <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
         <Ionicons name="home" size={24} color="black" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('SettingScreen')}>
-        <Ionicons name="settings-outline" size={24} color="black" />
-      </TouchableOpacity>
       <View style={styles.grid}>
         {guesses.map((guess, index) => (
           <GuessRow key={index} guess={guess} rowIndex={index} />
         ))}
       </View>
-      {kazandiniz && (
-        <View style={styles.kazandinizContainer}>
-          <Text style={styles.kazandinizText}>Kazandınız!</Text>
+      {showWinningMessage && (
+        <View style={styles.winningMessageContainer}>
+          <Text style={styles.winningMessage}>Kazandınız!</Text>
         </View>
       )}
       <Keyboard onKeyPress={onKeyPress} />
@@ -227,12 +278,6 @@ const styles = StyleSheet.create({
     left: 25,
     zIndex: 10,
   },
-  settingsButton: {
-    position: 'absolute',
-    top: 80,
-    right: 25,
-    zIndex: 10,
-  },
   guessRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -253,20 +298,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333333',
   },
-  kazandinizContainer: {
+  winningMessageContainer: {
     position: 'absolute',
     top: '50%',
     left: '50%',
     transform: [{ translateX: -50 }, { translateY: -50 }],
-    backgroundColor: 'rgba(0, 128, 0, 0.8)',
     padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
     borderRadius: 10,
   },
-  kazandinizText: {
+  winningMessage: {
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    textAlign: 'center',
   },
 });
 
-export default GameScreen;
+export default DailyGameScreen;

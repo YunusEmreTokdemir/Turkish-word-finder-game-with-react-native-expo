@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Expo kullanıyorsanız
+import { Ionicons } from '@expo/vector-icons';
+import { color } from '../constant/color';
 
 const HomeScreen = ({ navigation }) => {
 
@@ -12,22 +13,32 @@ const HomeScreen = ({ navigation }) => {
   const handleStatisticksPress = () => {
     navigation.navigate('StatisticksScreen'); // İstatistikler sayfasına yönlendirme
   };
+
   const handleHowToPlayPress = () => {
-    navigation.navigate('InfoScreen'); // Navigate to the How to Play screen
+    navigation.navigate('InfoScreen'); // Nasıl oynanır ekranına yönlendirme
   };
+
+  const handleDailyGamePress = () => {
+    navigation.navigate('GÜNLÜK OYUN'); // Günlük oyun ekranına yönlendirme
+  };
+
+  const handleUnlimitedGamePress = () => {
+    navigation.navigate('OYUN'); // Sınırsız oyun ekranına yönlendirme
+  };
+
   return (
       <View style={styles.container}>
         <Text style={styles.titlet}>KELİMETRE</Text>
         <Text style={styles.title}>MOD SEÇ</Text>
         <TouchableOpacity
           style={[styles.button]}
-          onPress={() => navigation.navigate('OYUN')}
+          onPress={handleUnlimitedGamePress}
         >
           <Text style={styles.buttonText}>SINIRSIZ MOD</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button]}
-          onPress={() => navigation.navigate('OYUN')}
+          onPress={handleDailyGamePress} // Günlük oyun ekranına yönlendirme
         >
           <Text style={styles.buttonText}>GÜNLÜK MOD</Text>
         </TouchableOpacity>
@@ -64,23 +75,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'android' ? 25 : 0, // StatusBar yüksekliğini telafi etmek için
-    backgroundColor: '#f0f0f0', // Arka planı hafif bir gri ton yaparak daha yumuşak bir görünüm verir
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+    backgroundColor: '#f0f0f0',
   },
   settingsButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 80 : 100, // Adjust the top value according to your status bar height
+    top: Platform.OS === 'android' ? 80 : 100,
     left: 20,
   },
   infoButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 80 : 100, // Değerleri aşağıya indir
-    right: 20
+    top: Platform.OS === 'android' ? 80 : 100,
+    right: 20,
   },
   StaticButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 80 : 1000, // Same as settingsButton
-    left: 60, 
+    top: Platform.OS === 'android' ? 80 : 100,
+    left: 60,
   },
   title: {
     fontSize: 26,
@@ -88,15 +99,15 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   button: {
-    backgroundColor: '#32cd32',
+    backgroundColor: color.primary500,
     padding: 20,
     borderRadius: 20,
     marginVertical: 10,
-    minWidth: 250, // Butonların minimum genişliği
+    minWidth: 250,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: color.primary200,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -106,8 +117,8 @@ const styles = StyleSheet.create({
     marginTop: 40,
     marginBottom: 100,
     alignSelf: 'center',
-    color: '#808080', // Açık gri renk, soluk görünüm için
-    opacity: 0.4, // Opaklık
+    color: color.primary100,
+    opacity: 0.4,
   },
 });
 
