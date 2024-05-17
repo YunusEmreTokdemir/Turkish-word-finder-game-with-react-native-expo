@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { color } from '../constant/color';
 
 const StatisticsScreen = ({ navigation }) => {
-  // Example statistics data
-  const stats = {
+  const [stats, setStats] = useState({
     gamesPlayed: 0,
     wins: 0,
     winPercentage: 0,
@@ -14,6 +14,22 @@ const StatisticsScreen = ({ navigation }) => {
     currentStreak: 0,
     maxStreak: 0,
     attemptDistribution: [0, 0, 0, 0, 0, 0]
+  });
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const savedStats = await AsyncStorage.getItem('gameStats');
+      if (savedStats) {
+        setStats(JSON.parse(savedStats));
+      }
+    };
+
+    loadStats();
+  }, []);
+
+  const getAttemptPercentage = (count) => {
+    if (stats.wins === 0) return 0;
+    return ((count / stats.wins) * 100).toFixed(2);
   };
 
   return (
@@ -58,9 +74,9 @@ const StatisticsScreen = ({ navigation }) => {
           <View key={index} style={styles.distributionRow}>
             <Text style={styles.distributionIndex}>#{index + 1}</Text>
             <View style={styles.distributionBar}>
-              <View style={[styles.distributionBarFilled, { width: `${count * 10}%` }]} />
+              <View style={[styles.distributionBarFilled, { width: `${getAttemptPercentage(count)}%` }]} />
             </View>
-            <Text style={styles.distributionCount}>{count}</Text>
+            <Text style={styles.distributionCount}>{getAttemptPercentage(count)}%</Text>
           </View>
         ))}
       </View>

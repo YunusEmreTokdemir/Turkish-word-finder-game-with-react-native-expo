@@ -34,14 +34,12 @@ const styles = StyleSheet.create({
   keyboard: {
     justifyContent: 'center',
     alignItems: 'center',
-    //backgroundColor: '#f2f2f2', // Farklı bir arkaplan rengi
     padding: 10,
     borderRadius: 10, // Konteynır köşe yuvarlaklığı
     shadowColor: '#000', // Gölge efekti
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    //elevation: 5,
   },
   row: {
     flexDirection: 'row',
@@ -63,15 +61,11 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   keyText: {
-    fontSize: 16, // Font boyutu
+    fontSize: 24, // Font boyutu
     color: '#333333', // Font rengi
   },
-  specialKey: {
-    backgroundColor: '#dedede', // Özel tuş arkaplan rengi
-  },
-  specialKeyText: {
-    color: '#555555', // Özel tuş yazı rengi
-  },
+  
+  
 });
 
 export default Keyboard;

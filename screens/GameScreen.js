@@ -18,8 +18,10 @@ const GameScreen = () => {
   const [currentRow, setCurrentRow] = useState(0);
   const [currentColumn, setCurrentColumn] = useState(0);
   const [correctWord, setCorrectWord] = useState('');
-  const [letterStatuses, setLetterStatuses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('grey')));
+  const [letterStatuses, setLetterStatuses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('')));
   const [kazandiniz, setKazandiniz] = useState(false);
+  const [showCorrectWord, setShowCorrectWord] = useState(false);
+  const [correctWordColor, setCorrectWordColor] = useState('green');
 
   useEffect(() => {
     initializeDatabase().then(() => {
@@ -69,15 +71,47 @@ const GameScreen = () => {
             const word = rows._array[0].word.toUpperCase();
             setCorrectWord(word);
             setGuesses(Array(6).fill('').map(() => Array(harfSayisi).fill('')));
-            setLetterStatuses(Array(6).fill('').map(() => Array(harfSayisi).fill('grey')));
+            setLetterStatuses(Array(6).fill('').map(() => Array(harfSayisi).fill('')));
             setCurrentRow(0);
             setCurrentColumn(0);
+            setShowCorrectWord(false);
             console.log(`Seçilen kelime: ${word}`); // Seçilen kelimeyi konsola basın
           }
         },
         (_, error) => console.error('Failed to fetch word from database:', error)
       );
     });
+  };
+
+  const updateStats = async (didWin) => {
+    const stats = await AsyncStorage.getItem('gameStats');
+    let gameStats = stats ? JSON.parse(stats) : {
+      gamesPlayed: 0,
+      wins: 0,
+      winPercentage: 0,
+      bestAttempt: 0,
+      currentStreak: 0,
+      maxStreak: 0,
+      attemptDistribution: [0, 0, 0, 0, 0, 0],
+    };
+
+    gameStats.gamesPlayed += 1;
+    if (didWin) {
+      gameStats.wins += 1;
+      gameStats.currentStreak += 1;
+      if (gameStats.currentStreak > gameStats.maxStreak) {
+        gameStats.maxStreak = gameStats.currentStreak;
+      }
+      if (gameStats.bestAttempt === 0 || currentRow + 1 < gameStats.bestAttempt) {
+        gameStats.bestAttempt = currentRow + 1;
+      }
+      gameStats.attemptDistribution[currentRow] += 1;
+    } else {
+      gameStats.currentStreak = 0;
+    }
+    gameStats.winPercentage = Math.round((gameStats.wins / gameStats.gamesPlayed) * 100);
+
+    await AsyncStorage.setItem('gameStats', JSON.stringify(gameStats));
   };
 
   const onKeyPress = (key) => {
@@ -113,6 +147,7 @@ const GameScreen = () => {
             checkLetters(userGuess);
             if (userGuess === correctWord) {
               setKazandiniz(true); // Kazandınız mesajını göster
+              updateStats(true);
               setTimeout(() => {
                 setKazandiniz(false); // Kazandınız mesajını kapat
                 restartGame(); // Yeni oyunu başlat
@@ -122,7 +157,13 @@ const GameScreen = () => {
               setCurrentColumn(0);
             } else {
               console.log("Oyun Bitti");
-              restartGame();
+              updateStats(false);
+              setShowCorrectWord(true);
+              setCorrectWordColor('red');
+              setTimeout(() => {
+                setShowCorrectWord(false);
+                restartGame();
+              }, 3000);
             }
           } else {
             Vibration.vibrate(500); // 500 milisaniye titreşim
@@ -145,14 +186,14 @@ const GameScreen = () => {
     for (let i = 0; i < letterCount; i++) {
       if (userGuess[i] === correctWord[i]) {
         statusArray[i] = 'green';
-        tempCorrectWord[i] = ' ';
+        tempCorrectWord[i] = null;
       }
     }
 
     for (let i = 0; i < letterCount; i++) {
       if (tempCorrectWord.includes(userGuess[i]) && statusArray[i] !== 'green') {
         statusArray[i] = 'yellow';
-        tempCorrectWord[tempCorrectWord.indexOf(userGuess[i])] = ' ';
+        tempCorrectWord[tempCorrectWord.indexOf(userGuess[i])] = null;
       }
     }
 
@@ -172,6 +213,9 @@ const GameScreen = () => {
             break;
           case 'yellow':
             boxColor = '#FFEB3B';
+            break;
+          case 'grey':
+            boxColor = '#E0E0E0';
             break;
           default:
             boxColor = '#FFFFFF';
@@ -202,6 +246,11 @@ const GameScreen = () => {
       {kazandiniz && (
         <View style={styles.kazandinizContainer}>
           <Text style={styles.kazandinizText}>Kazandınız!</Text>
+        </View>
+      )}
+      {showCorrectWord && (
+        <View style={[styles.correctWordContainer, { backgroundColor: correctWordColor }]}>
+          <Text style={styles.correctWordText}>Doğru Kelime: {correctWord}</Text>
         </View>
       )}
       <Keyboard onKeyPress={onKeyPress} />
@@ -266,6 +315,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+  },
+  correctWordContainer: {
+    position: 'absolute',
+    bottom: '30%', // Ekranın altında görünmesi için ayarlayabilirsiniz.
+    left: '43%',
+    transform: [{ translateX: -50 }],
+    padding: 10,
+    borderRadius: 10,
+  },
+  correctWordText: {
+    fontSize: 18,
+    color: 'white', // Yazının rengi.
+    textAlign: 'center',
+    fontWeight: 'bold', // Yazının kalınlığı.
   },
 });
 
