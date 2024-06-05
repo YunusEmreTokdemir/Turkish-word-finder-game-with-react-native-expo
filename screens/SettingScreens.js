@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Switch 
 import { Icon } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
 import { enableVibration, disableVibration, isVibrationEnabled } from '../components/vibration';
-import { useTheme, darkTheme } from '../theme/ThemeContext'; // Doğru import
+import { useTheme, darkTheme, lightTheme } from '../theme/ThemeContext';
 
 const SettingScreen = ({ navigation }) => {
   const { theme, toggleTheme } = useTheme();
@@ -33,7 +33,7 @@ const SettingScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]} contentContainerStyle={styles.contentContainer}>
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => navigation.navigate('ANA SAYFA')}
@@ -72,6 +72,9 @@ const SettingScreen = ({ navigation }) => {
         <Switch
           value={theme === darkTheme}
           onValueChange={toggleTheme}
+          trackColor={{ false: "#767577", true: "#007bff" }}
+          thumbColor={theme === darkTheme ? "#f4f3f4" : "#f4f3f4"}
+          ios_backgroundColor="#3e3e3e"
         />
       </View>
       <View style={styles.settingItem}>
@@ -79,6 +82,9 @@ const SettingScreen = ({ navigation }) => {
         <Switch
           value={isVibrationOn}
           onValueChange={toggleVibration}
+          trackColor={{ false: "#767577", true: "#007bff" }}
+          thumbColor={isVibrationOn ? "#f4f3f4" : "#f4f3f4"}
+          ios_backgroundColor="#3e3e3e"
         />
       </View>
     </ScrollView>
@@ -88,23 +94,25 @@ const SettingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? 25 : 0, // Android için StatusBar yüksekliği, iOS için gerekli değil
-    marginHorizontal: 5,
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  contentContainer: {
+    paddingHorizontal: 15,
   },
   closeIcon: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 60 : 80, // Android için StatusBar yüksekliği, iOS için daha yüksek bir değer
-    right: 15, // Sağ taraftan boşluk
+    top: Platform.OS === 'android' ? 60 : 80,
+    right: 15,
     zIndex: 20,
   },
   backButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 60 : 80, // Aynı şekilde closeIcon ile aynı yükseklikte olmalı
-    left: 15, // Soldan boşluk
+    top: Platform.OS === 'android' ? 60 : 80,
+    left: 15,
     zIndex: 10,
   },
   headerContainer: {
-    marginTop: Platform.OS === 'android' ? 60 : 80, // closeIcon ve backButton'dan yeterli boşluk
+    marginTop: Platform.OS === 'android' ? 60 : 80,
     alignItems: 'center',
     paddingVertical: 20,
   },

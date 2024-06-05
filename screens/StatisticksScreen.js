@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ShareButton from '../components/ShareButton'; // Paylaşma butonu bileşenini içe aktarın
-import { useTheme } from '../theme/ThemeContext'; // Doğru import
+import ShareButton from '../components/ShareButton';
+import { useTheme } from '../theme/ThemeContext';
 
 const StatisticsScreen = ({ navigation }) => {
   const { theme } = useTheme();
@@ -34,7 +34,7 @@ const StatisticsScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]} contentContainerStyle={styles.contentContainer}>
       <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
         <Ionicons name="home" size={24} color={theme.textColor} />
       </TouchableOpacity>
@@ -91,7 +91,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? 25 : 0,
-    marginHorizontal: 5,
+  },
+  contentContainer: {
+    paddingHorizontal: 15,
   },
   homeButton: {
     position: 'absolute',
@@ -157,14 +159,14 @@ const styles = StyleSheet.create({
     height: 20,
     marginHorizontal: 15,
     borderRadius: 10,
-    backgroundColor: '#E0E0E0', // Barın arka planı
+    backgroundColor: '#E0E0E0',
   },
   distributionBarFilled: {
     height: '100%',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#4CAF50', // Yeşil renk
+    backgroundColor: '#4CAF50',
   },
   distributionPercentage: {
     fontSize: 12,

@@ -1,6 +1,18 @@
-// ThemeContext.js
 import React, { createContext, useState, useContext } from 'react';
-import { lightTheme, darkTheme } from './themes';
+
+export const lightTheme = {
+  backgroundColor: '#ffffff',
+  textColor: '#000000',
+  buttonColor: '#e0e0e0',
+  buttonTextColor: '#000000',
+};
+
+export const darkTheme = {
+  backgroundColor: '#121212',
+  textColor: '#ffffff',
+  buttonColor: '#333333',
+  buttonTextColor: '#ffffff',
+};
 
 const ThemeContext = createContext();
 
