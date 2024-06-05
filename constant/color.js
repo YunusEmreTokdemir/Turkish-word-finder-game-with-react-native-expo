@@ -7,9 +7,9 @@ export const color = {
 }
 
 export const colorstoEmoji = {
-    primary700: '#00CC00',  
-    primary800: '#FF9933', 
-    primary900: '#C0C0C0', 
+    primary700: '#0AC400',  //green
+    primary800: '#FFF705', //yellow
+    primary900: '#bebebe', //grey
 }
 
   

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { color } from '../constant/color';
+import ShareButton from '../components/ShareButton'; // Paylaşma butonu bileşenini içe aktarın
+import { useTheme } from '../theme/ThemeContext'; // Doğru import
 
 const StatisticsScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [stats, setStats] = useState({
     gamesPlayed: 0,
     wins: 0,
@@ -33,53 +34,55 @@ const StatisticsScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
-        <Ionicons name="home" size={24} color="black" />
+        <Ionicons name="home" size={24} color={theme.textColor} />
       </TouchableOpacity>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>İstatistik</Text>
+        <Text style={[styles.headerText, { color: theme.textColor }]}>İstatistik</Text>
       </View>
       <View style={styles.statsRow}>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>{stats.gamesPlayed}</Text>
-          <Text style={styles.statsLabel}>OYNANAN</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>{stats.gamesPlayed}</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>Oynanan</Text>
         </View>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>{stats.wins}</Text>
-          <Text style={styles.statsLabel}>GALİBİYET</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>{stats.wins}</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>Galibiyet</Text>
         </View>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>{stats.winPercentage}%</Text>
-          <Text style={styles.statsLabel}>GALİBİYET %</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>{stats.winPercentage}%</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>Galibiyet %</Text>
         </View>
       </View>
       <View style={styles.statsRow}>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>#{stats.bestAttempt}</Text>
-          <Text style={styles.statsLabel}>EN İYİ DENEME</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>#{stats.bestAttempt}</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>En İyi Deneme</Text>
         </View>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>{stats.currentStreak}</Text>
-          <Text style={styles.statsLabel}>SERİ GALİBİYET</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>{stats.currentStreak}</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>Seri Galibiyet</Text>
         </View>
-        <View style={styles.statsBox}>
-          <Text style={styles.statsValue}>{stats.maxStreak}</Text>
-          <Text style={styles.statsLabel}>SERİ REKORU</Text>
+        <View style={[styles.statsBox, { backgroundColor: theme.buttonColor }]}>
+          <Text style={[styles.statsValue, { color: theme.buttonTextColor }]}>{stats.maxStreak}</Text>
+          <Text style={[styles.statsLabel, { color: theme.textColor }]}>Seri Rekoru</Text>
         </View>
       </View>
-      <Text style={styles.distributionTitle}>En İyi Deneme</Text>
+      <Text style={[styles.distributionTitle, { color: theme.textColor }]}>Deneme Dağılımı</Text>
       <View style={styles.attemptDistribution}>
         {stats.attemptDistribution.map((count, index) => (
           <View key={index} style={styles.distributionRow}>
-            <Text style={styles.distributionIndex}>#{index + 1}</Text>
+            <Text style={[styles.distributionIndex, { color: theme.textColor }]}>#{index + 1}</Text>
             <View style={styles.distributionBar}>
-              <View style={[styles.distributionBarFilled, { width: `${getAttemptPercentage(count)}%` }]} />
+              <View style={[styles.distributionBarFilled, { width: `${getAttemptPercentage(count)}%` }]}>
+                <Text style={[styles.distributionPercentage, { color: theme.textColor }]}>{getAttemptPercentage(count)}%</Text>
+              </View>
             </View>
-            <Text style={styles.distributionCount}>{getAttemptPercentage(count)}%</Text>
           </View>
         ))}
       </View>
+      <ShareButton stats={stats} />
     </ScrollView>
   );
 };
@@ -114,7 +117,6 @@ const styles = StyleSheet.create({
   statsBox: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: color.primary300,
     paddingVertical: 10,
     marginHorizontal: 5,
     borderRadius: 15,
@@ -125,7 +127,6 @@ const styles = StyleSheet.create({
   },
   statsLabel: {
     fontSize: 16,
-    color: 'grey',
   },
   distributionTitle: {
     fontSize: 20,
@@ -153,15 +154,21 @@ const styles = StyleSheet.create({
   },
   distributionBar: {
     flex: 1,
-    height: 14,
+    height: 20,
     marginHorizontal: 15,
-    backgroundColor: color.primary300,
     borderRadius: 10,
+    backgroundColor: '#E0E0E0', // Barın arka planı
   },
   distributionBarFilled: {
     height: '100%',
-    backgroundColor: '#4CAF50',
     borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50', // Yeşil renk
+  },
+  distributionPercentage: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

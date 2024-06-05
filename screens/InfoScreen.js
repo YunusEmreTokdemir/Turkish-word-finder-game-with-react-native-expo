@@ -1,23 +1,28 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext'; // Doğru import
+
+import { colorstoEmoji } from '../constant/color'; // Renk sabitlerini import et
 
 const InfoScreen = ({ navigation }) => {
+  const { theme } = useTheme();
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       {/* Geri butonu */}
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-        <Ionicons name="close" size={30} color="black" />
+        <Ionicons name="close" size={30} color={theme.textColor} />
       </TouchableOpacity>
       
       {/* Başlık */}
-      <Text style={styles.headerText}>Nasıl Oynanır</Text>
+      <Text style={[styles.headerText, { color: theme.textColor }]}>Nasıl Oynanır</Text>
 
       {/* Açıklamalar */}
-      <Text style={styles.description}>
+      <Text style={[styles.description, { color: theme.textColor }]}>
         6 denemede gizli kelimeyi tahmin etmeniz gerekiyor ve ne kadar yakın olduğunuzu göstermek için harflerin rengi değişiyor.
       </Text>
-      <Text style={styles.description}>
+      <Text style={[styles.description, { color: theme.textColor }]}>
         Oyuna başlamak için herhangi bir kelime girin, örneğin:
       </Text>
       
@@ -34,9 +39,9 @@ const InfoScreen = ({ navigation }) => {
         ))}
       </View>
 
-      <Text style={styles.instruction}>N ve İ harfleri hedef kelimede yok.</Text>
-      <Text style={styles.instruction}>E ve H harfi hedef kelimenin içinde ama yanlış yerde.</Text>
-      <Text style={styles.instruction}>R harfi hedef kelimenin içinde ve doğru yerde.</Text>
+      <Text style={[styles.instruction, { color: theme.textColor }]}>N ve İ harfleri hedef kelimede yok.</Text>
+      <Text style={[styles.instruction, { color: theme.textColor }]}>E ve H harfi hedef kelimenin içinde ama yanlış yerde.</Text>
+      <Text style={[styles.instruction, { color: theme.textColor }]}>R harfi hedef kelimenin içinde ve doğru yerde.</Text>
             
       <View style={styles.wordContainer}>
         {['H', 'A', 'B', 'E', 'R'].map((letter, index) => (
@@ -48,8 +53,7 @@ const InfoScreen = ({ navigation }) => {
           </View>
         ))}
       </View>
-      <Text style={styles.finalNote}>Kelimeyi buldunuz! 🏆</Text>
-
+      <Text style={[styles.finalNote, { color: theme.correct }]}>Kelimeyi buldunuz! 🏆</Text>
     </ScrollView>
   );
 };
@@ -88,13 +92,13 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   wrong: {
-    backgroundColor: '#C0C0C0', // Gri renk
+    backgroundColor: colorstoEmoji.primary900 // Gri renk
   },
   wrongt: {
-    backgroundColor: '#FF9933', // Kırmızı renk
+    backgroundColor: colorstoEmoji.primary800, // Kırmızı renk
   },
   correct: {
-    backgroundColor: '#00CC00', // Yeşil renk
+    backgroundColor: colorstoEmoji.primary700, // Yeşil renk
   },
   letter: {
     fontSize: 28,
@@ -110,7 +114,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginTop: 20,
-    color: 'green', // Yeşil renk
   },
   // Diğer stil tanımlamalarınız burada yer alabilir
 });

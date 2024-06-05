@@ -1,12 +1,31 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
-import { Icon, Switch } from 'react-native-elements';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Switch } from 'react-native';
+import { Icon } from 'react-native-elements';
 import { Ionicons } from '@expo/vector-icons';
-
+import { enableVibration, disableVibration, isVibrationEnabled } from '../components/vibration';
+import { useTheme, darkTheme } from '../theme/ThemeContext'; // Doğru import
 
 const SettingScreen = ({ navigation }) => {
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
-  const [letterCount, setLetterCount] = React.useState(5); 
+  const { theme, toggleTheme } = useTheme();
+  const [letterCount, setLetterCount] = React.useState(5);
+  const [isVibrationOn, setIsVibrationOn] = React.useState(false);
+
+  React.useEffect(() => {
+    const loadVibrationSetting = async () => {
+      const enabled = await isVibrationEnabled();
+      setIsVibrationOn(enabled);
+    };
+    loadVibrationSetting();
+  }, []);
+
+  const toggleVibration = async (value) => {
+    setIsVibrationOn(value);
+    if (value) {
+      await enableVibration();
+    } else {
+      await disableVibration();
+    }
+  };
 
   const selectLetterCountAndNavigate = (count) => {
     setLetterCount(count);
@@ -14,13 +33,13 @@ const SettingScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => navigation.navigate('ANA SAYFA')}
       >
         <Text>
-          <Ionicons name="home" size={24} color="black" />
+          <Ionicons name="home" size={24} color={theme.textColor} />
         </Text>
       </TouchableOpacity>
       <Icon
@@ -29,12 +48,13 @@ const SettingScreen = ({ navigation }) => {
         size={24}
         containerStyle={styles.closeIcon}
         onPress={() => navigation.goBack()}
+        color={theme.textColor}
       />
       <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Ayarlar</Text>
+        <Text style={[styles.headerText, { color: theme.textColor }]}>Ayarlar</Text>
       </View>
       <View style={styles.settingItem}>
-        <Text style={styles.settingText}>Harf Sayısı</Text>
+        <Text style={[styles.settingText, { color: theme.textColor }]}>Harf Sayısı</Text>
         <View style={styles.letterCountContainer}>
           {[4, 5, 6, 7].map((count) => (
             <TouchableOpacity
@@ -48,10 +68,17 @@ const SettingScreen = ({ navigation }) => {
         </View>
       </View>
       <View style={styles.settingItem}>
-        <Text style={styles.settingText}>Karanlık Mod</Text>
+        <Text style={[styles.settingText, { color: theme.textColor }]}>Karanlık Mod</Text>
         <Switch
-          value={isDarkMode}
-          onValueChange={setIsDarkMode}
+          value={theme === darkTheme}
+          onValueChange={toggleTheme}
+        />
+      </View>
+      <View style={styles.settingItem}>
+        <Text style={[styles.settingText, { color: theme.textColor }]}>Titreşim</Text>
+        <Switch
+          value={isVibrationOn}
+          onValueChange={toggleVibration}
         />
       </View>
     </ScrollView>
@@ -113,7 +140,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'white',
   },
-  
 });
 
 export default SettingScreen;

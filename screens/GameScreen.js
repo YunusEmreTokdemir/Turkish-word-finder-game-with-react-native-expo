@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Vibration } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { openDatabase } from 'expo-sqlite';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../theme/ThemeContext'; // Tema kullanımı için import
 
 import Keyboard from '../constant/keyboard';
+import { vibrate } from '../components/vibration';
+import { onKeyPress } from '../components/onKeyPress';
+import GuessRow from '../components/GuessRow';
+import { updateStats } from '../components/statistics'; // İstatistik fonksiyonunu içe aktarın
 
 const db = openDatabase('wordle.db');
 
 const GameScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const { theme } = useTheme(); // Tema kullanımı için ekleme
   const letterCount = route.params?.letterCount || 5;
   const [guesses, setGuesses] = useState(Array(6).fill('').map(() => Array(letterCount).fill('')));
   const [currentRow, setCurrentRow] = useState(0);
@@ -22,44 +27,11 @@ const GameScreen = () => {
   const [kazandiniz, setKazandiniz] = useState(false);
   const [showCorrectWord, setShowCorrectWord] = useState(false);
   const [correctWordColor, setCorrectWordColor] = useState('green');
+  const [usedLetters, setUsedLetters] = useState({});
 
   useEffect(() => {
-    initializeDatabase().then(() => {
-      rastgeleKelimeSec(letterCount);
-    });
+    rastgeleKelimeSec(letterCount);
   }, [letterCount]);
-
-  const initializeDatabase = async () => {
-    return new Promise((resolve, reject) => {
-      db.transaction(tx => {
-        tx.executeSql(
-          'create table if not exists words (id integer primary key not null, length integer, word text);',
-          [],
-          () => {
-            tx.executeSql('select count(id) as cnt from words;', [], (_, { rows }) => {
-              if (rows._array[0].cnt === 0) {
-                console.log('Database is empty, inserting data...');
-                // Kelimeleri ekleyin
-                Object.keys(kelimelistesi).forEach(key => {
-                  const length = parseInt(key.split('_')[0]);
-                  kelimelistesi[key].forEach(word => {
-                    tx.executeSql('insert into words (length, word) values (?, ?);', [length, word]);
-                  });
-                });
-              } else {
-                console.log('Database already initialized.');
-              }
-              resolve();
-            });
-          },
-          (_, error) => {
-            console.log('Error initializing database: ' + error.message);
-            reject();
-          }
-        );
-      });
-    });
-  };
 
   const rastgeleKelimeSec = (harfSayisi) => {
     db.transaction(tx => {
@@ -75,6 +47,7 @@ const GameScreen = () => {
             setCurrentRow(0);
             setCurrentColumn(0);
             setShowCorrectWord(false);
+            setUsedLetters({});
             console.log(`Seçilen kelime: ${word}`); // Seçilen kelimeyi konsola basın
           }
         },
@@ -83,60 +56,7 @@ const GameScreen = () => {
     });
   };
 
-  const updateStats = async (didWin) => {
-    const stats = await AsyncStorage.getItem('gameStats');
-    let gameStats = stats ? JSON.parse(stats) : {
-      gamesPlayed: 0,
-      wins: 0,
-      winPercentage: 0,
-      bestAttempt: 0,
-      currentStreak: 0,
-      maxStreak: 0,
-      attemptDistribution: [0, 0, 0, 0, 0, 0],
-    };
-
-    gameStats.gamesPlayed += 1;
-    if (didWin) {
-      gameStats.wins += 1;
-      gameStats.currentStreak += 1;
-      if (gameStats.currentStreak > gameStats.maxStreak) {
-        gameStats.maxStreak = gameStats.currentStreak;
-      }
-      if (gameStats.bestAttempt === 0 || currentRow + 1 < gameStats.bestAttempt) {
-        gameStats.bestAttempt = currentRow + 1;
-      }
-      gameStats.attemptDistribution[currentRow] += 1;
-    } else {
-      gameStats.currentStreak = 0;
-    }
-    gameStats.winPercentage = Math.round((gameStats.wins / gameStats.gamesPlayed) * 100);
-
-    await AsyncStorage.setItem('gameStats', JSON.stringify(gameStats));
-  };
-
-  const onKeyPress = (key) => {
-    if (key === '✓') {
-      if (currentColumn === letterCount) {
-        checkGuess();
-      } else {
-        console.log('Henüz tamamlanmadı!');
-      }
-    } else if (key === '⌫') {
-      if (currentColumn > 0) {
-        const newGuesses = [...guesses];
-        newGuesses[currentRow][currentColumn - 1] = '';
-        setGuesses(newGuesses);
-        setCurrentColumn(currentColumn - 1);
-      }
-    } else if (currentColumn < letterCount) {
-      const newGuesses = [...guesses];
-      newGuesses[currentRow][currentColumn] = key;
-      setGuesses(newGuesses);
-      setCurrentColumn(currentColumn + 1);
-    }
-  };
-
-  const checkGuess = () => {
+  const checkGuess = async () => {
     const userGuess = guesses[currentRow].join('').toUpperCase();
     db.transaction(tx => {
       tx.executeSql(
@@ -145,19 +65,20 @@ const GameScreen = () => {
         (_, { rows }) => {
           if (rows.length > 0) {
             checkLetters(userGuess);
+            updateUsedLetters(userGuess);
             if (userGuess === correctWord) {
-              setKazandiniz(true); // Kazandınız mesajını göster
-              updateStats(true);
+              setKazandiniz(true);
+              updateStats(true, currentRow); // İstatistik güncelleme
               setTimeout(() => {
-                setKazandiniz(false); // Kazandınız mesajını kapat
-                restartGame(); // Yeni oyunu başlat
-              }, 2000);
+                setKazandiniz(false);
+                restartGame();
+              }, 3000); // Süreyi 2800 milisaniye olarak değiştirin
             } else if (currentRow < 5) {
               setCurrentRow(currentRow + 1);
               setCurrentColumn(0);
             } else {
               console.log("Oyun Bitti");
-              updateStats(false);
+              updateStats(false, currentRow); // İstatistik güncelleme
               setShowCorrectWord(true);
               setCorrectWordColor('red');
               setTimeout(() => {
@@ -166,8 +87,7 @@ const GameScreen = () => {
               }, 3000);
             }
           } else {
-            Vibration.vibrate(500); // 500 milisaniye titreşim
-            console.log('Kelime havuzunda bu kelime yok!');
+            vibrate();
           }
         },
         (_, error) => console.error('Failed to check guess:', error)
@@ -203,44 +123,31 @@ const GameScreen = () => {
     });
   };
 
-  const GuessRow = ({ guess, rowIndex }) => (
-    <View style={styles.guessRow}>
-      {guess.map((letter, index) => {
-        let boxColor;
-        switch (letterStatuses[rowIndex][index]) {
-          case 'green':
-            boxColor = '#4CAF50';
-            break;
-          case 'yellow':
-            boxColor = '#FFEB3B';
-            break;
-          case 'grey':
-            boxColor = '#E0E0E0';
-            break;
-          default:
-            boxColor = '#FFFFFF';
-        }
+  const updateUsedLetters = (userGuess) => {
+    const newUsedLetters = { ...usedLetters };
+    userGuess.split('').forEach((letter) => {
+      if (!correctWord.includes(letter)) {
+        newUsedLetters[letter] = true;
+      }
+    });
+    setUsedLetters(newUsedLetters);
+  };
 
-        return (
-          <View key={index} style={[styles.guessBox, { backgroundColor: boxColor }]}>
-            <Text style={styles.guessText}>{letter.toUpperCase()}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
+  const onKeyPressHandler = (key) => {
+    onKeyPress(key, currentColumn, setCurrentColumn, letterCount, guesses, setGuesses, currentRow, setCurrentRow, checkGuess, false);
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.backgroundColor }]}>
       <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('ANA SAYFA')}>
-        <Ionicons name="home" size={24} color="black" />
+        <Ionicons name="home" size={24} color={theme.textColor} />
       </TouchableOpacity>
       <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('SettingScreen')}>
-        <Ionicons name="settings-outline" size={24} color="black" />
+        <Ionicons name="settings-outline" size={24} color={theme.textColor} />
       </TouchableOpacity>
       <View style={styles.grid}>
         {guesses.map((guess, index) => (
-          <GuessRow key={index} guess={guess} rowIndex={index} />
+          <GuessRow key={index} guess={guess} rowIndex={index} letterStatuses={letterStatuses} />
         ))}
       </View>
       {kazandiniz && (
@@ -253,7 +160,7 @@ const GameScreen = () => {
           <Text style={styles.correctWordText}>Doğru Kelime: {correctWord}</Text>
         </View>
       )}
-      <Keyboard onKeyPress={onKeyPress} />
+      <Keyboard onKeyPress={onKeyPressHandler} usedLetters={usedLetters} />
     </SafeAreaView>
   );
 };
@@ -261,7 +168,6 @@ const GameScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F7F7',
     paddingHorizontal: 20,
     paddingTop: 20,
   },
@@ -282,26 +188,6 @@ const styles = StyleSheet.create({
     right: 25,
     zIndex: 10,
   },
-  guessRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  guessBox: {
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    margin: 2,
-  },
-  guessText: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: '#333333',
-  },
   kazandinizContainer: {
     position: 'absolute',
     top: '50%',
@@ -318,7 +204,7 @@ const styles = StyleSheet.create({
   },
   correctWordContainer: {
     position: 'absolute',
-    bottom: '30%', // Ekranın altında görünmesi için ayarlayabilirsiniz.
+    bottom: '30%',
     left: '43%',
     transform: [{ translateX: -50 }],
     padding: 10,
@@ -326,9 +212,9 @@ const styles = StyleSheet.create({
   },
   correctWordText: {
     fontSize: 18,
-    color: 'white', // Yazının rengi.
+    color: 'white',
     textAlign: 'center',
-    fontWeight: 'bold', // Yazının kalınlığı.
+    fontWeight: 'bold',
   },
 });
 
